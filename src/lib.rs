@@ -1,3 +1,27 @@
+//! A Least Frequently Used Cache implementation
+//!
+//!
+//!
+//!
+//! # Examples
+//!
+//! ```
+//! extern crate lfu;
+//! use lfu::LFUCache;
+//!
+//! # fn main() {
+//! let mut lfu = LFUCache::new(2); //initialize an lfu with a maximum capacity of 2 entries
+//! lfu.set(2, 2);
+//! lfu.set(3, 3);
+//! lfu.set(3, 30);
+//! lfu.set(4,4);
+
+//! assert_eq!(lfu.get(&2), None);
+//! assert_eq!(lfu.get(&3), Some(&30));
+//!
+//! # }
+//! ```
+
 use std::collections::HashMap;
 use std::hash::Hash;
 use linked_hash_set::LinkedHashSet;
@@ -68,16 +92,15 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
     }
 
 
-    pub fn get(&mut self, key: K) -> Option<&V> {
+    pub fn get(&mut self, key: &K) -> Option<&V> {
         if !self.contains(&key) {
             return None;
         }
 
-        let key = Rc::new(key);
+        let key  = self.values.get_key_value(key).map(|(r, value)| Rc::clone(r)).unwrap();
+
         self.update_frequency_bin(Rc::clone(&key));
-        let v = self.values.get_mut(&key).unwrap();
-        v.count += 1;
-        return Some(v.value());
+        self.values.get(&key).map(|x| x.value())
     }
 
     fn update_frequency_bin(&mut self, key: Rc<K>) {
@@ -146,8 +169,8 @@ mod tests {
         let mut lfu = LFUCache::new(20);
         lfu.set(10, 10);
         lfu.set(20, 30);
-        assert_eq!(lfu.get(10).unwrap(), &10);
-        assert_eq!(lfu.get(30), None);
+        assert_eq!(lfu.get(&10).unwrap(), &10);
+        assert_eq!(lfu.get(&30), None);
     }
 
     #[test]
@@ -156,7 +179,7 @@ mod tests {
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.set(3, 3);
-        assert_eq!(lfu.get(1), None)
+        assert_eq!(lfu.get(&1), None)
     }
 
     #[test]
@@ -167,7 +190,7 @@ mod tests {
         lfu.set(1, 3);
 
         lfu.set(10, 10);
-        assert_eq!(lfu.get(2), None);
+        assert_eq!(lfu.get(&2), None);
         assert_eq!(lfu[10], 10);
     }
 
@@ -185,19 +208,19 @@ mod tests {
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.remove(1);
-        assert_eq!(lfu.get(1), None);
+        assert_eq!(lfu.get(&1), None);
         lfu.set(3, 3);
         lfu.set(4, 4);
-        assert_eq!(lfu.get(2), None);
-        assert_eq!(lfu.get(3), Some(&3));
+        assert_eq!(lfu.get(&2), None);
+        assert_eq!(lfu.get(&3), Some(&3));
     }
 
     #[test]
     fn test_duplicates() {
         let mut lfu = LFUCache::new(2);
-        lfu.set(1, 1);
-        lfu.set(1, 2);
-        lfu.set(1, 3);
-        assert_eq!(lfu[1], 3);
+        lfu.set(&1, 1);
+        lfu.set(&1, 2);
+        lfu.set(&1, 3);
+        assert_eq!(lfu[&1], 3);
     }
 }
