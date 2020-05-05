@@ -34,7 +34,7 @@ use std::ops::Index;
 #[derive(Debug)]
 pub struct LFUCache<K: Hash + Eq, V> {
     values: HashMap<Rc<K>, ValueCounter<V>>,
-    frequency_bin: RefCell<HashMap<usize, LinkedHashSet<Rc<K>>>>,
+    frequency_bin: HashMap<usize, LinkedHashSet<Rc<K>>>,
     capacity: usize,
     min_frequency: RefCell<usize>,
 }
@@ -67,7 +67,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         }
         LFUCache {
             values: HashMap::new(),
-            frequency_bin: RefCell::new(HashMap::new()),
+            frequency_bin: HashMap::new(),
             capacity,
             min_frequency: RefCell::new(0),
         }
@@ -85,7 +85,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         let key = Rc::new(key);
         if let Some(valueCounter) = self.values.get(&Rc::clone(&key)) {
             let count = valueCounter.count();
-            self.frequency_bin.borrow_mut().entry(count).or_default().remove(&Rc::clone(&key));
+            self.frequency_bin.entry(count).or_default().remove(&Rc::clone(&key));
             self.values.remove(&key);
         }
         return false;
@@ -97,27 +97,25 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
             return None;
         }
 
-        let key  = self.values.get_key_value(key).map(|(r, value)| Rc::clone(r)).unwrap();
-
+        let key = self.values.get_key_value(key).map(|(r, _)| Rc::clone(r)).unwrap();
         self.update_frequency_bin(Rc::clone(&key));
         self.values.get(&key).map(|x| x.value())
     }
 
     fn update_frequency_bin(&mut self, key: Rc<K>) {
         let value_counter = self.values.get_mut(&key).unwrap();
-        let mut map = self.frequency_bin.borrow_mut();
-        map.get_mut(&value_counter.count).unwrap().remove(&key);
+        let bin = self.frequency_bin.get_mut(&value_counter.count).unwrap();
+        bin.remove(&key);
         let count = value_counter.count();
         value_counter.inc();
-        if count == *self.min_frequency.borrow() && map.len() == 0 {
+        if count == *self.min_frequency.borrow() && bin.len() == 0 {
             *self.min_frequency.borrow_mut() += 1;
         }
-        map.entry(count + 1).or_default().insert(key);
+        self.frequency_bin.entry(count + 1).or_default().insert(key);
     }
 
     fn evict(&mut self) {
-        let mut temp = self.frequency_bin.borrow_mut();
-        let least_frequently_used_keys = temp.get_mut(&self.min_frequency.borrow()).unwrap();
+        let least_frequently_used_keys = self.frequency_bin.get_mut(&self.min_frequency.borrow()).unwrap();
         let least_recently_used = least_frequently_used_keys.pop_front().unwrap();
         self.values.remove(&least_recently_used);
     }
@@ -135,7 +133,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         }
         self.values.insert(Rc::clone(&key), ValueCounter { value, count: 1 });
         *self.min_frequency.borrow_mut() = 1;
-        self.frequency_bin.borrow_mut().entry(1).or_default().insert(key);
+        self.frequency_bin.entry(1).or_default().insert(key);
     }
 }
 
