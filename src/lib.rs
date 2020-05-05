@@ -14,7 +14,7 @@
 //! lfu.set(2, 2);
 //! lfu.set(3, 3);
 //! lfu.set(3, 30);
-//! lfu.set(4,4);
+//! lfu.set(4,4); //We're at fully capacity. Purge (2,2) since it's the least-recently-used entry, then insert the current entry
 
 //! assert_eq!(lfu.get(&2), None);
 //! assert_eq!(lfu.get(&3), Some(&30));
@@ -36,7 +36,7 @@ pub struct LFUCache<K: Hash + Eq, V> {
     values: HashMap<Rc<K>, ValueCounter<V>>,
     frequency_bin: HashMap<usize, LinkedHashSet<Rc<K>>>,
     capacity: usize,
-    min_frequency: RefCell<usize>,
+    min_frequency: usize,
 }
 
 
@@ -53,7 +53,6 @@ impl<V> ValueCounter<V> {
     fn count(&self) -> usize {
         return self.count;
     }
-
     fn inc(&mut self) {
         self.count += 1;
     }
@@ -69,7 +68,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
             values: HashMap::new(),
             frequency_bin: HashMap::new(),
             capacity,
-            min_frequency: RefCell::new(0),
+            min_frequency: 0,
         }
     }
 
@@ -108,14 +107,14 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         bin.remove(&key);
         let count = value_counter.count();
         value_counter.inc();
-        if count == *self.min_frequency.borrow() && bin.len() == 0 {
-            *self.min_frequency.borrow_mut() += 1;
+        if count == self.min_frequency && bin.len() == 0 {
+            self.min_frequency += 1;
         }
         self.frequency_bin.entry(count + 1).or_default().insert(key);
     }
 
     fn evict(&mut self) {
-        let least_frequently_used_keys = self.frequency_bin.get_mut(&self.min_frequency.borrow()).unwrap();
+        let least_frequently_used_keys = self.frequency_bin.get_mut(&self.min_frequency).unwrap();
         let least_recently_used = least_frequently_used_keys.pop_front().unwrap();
         self.values.remove(&least_recently_used);
     }
@@ -132,8 +131,8 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
             self.evict();
         }
         self.values.insert(Rc::clone(&key), ValueCounter { value, count: 1 });
-        *self.min_frequency.borrow_mut() = 1;
-        self.frequency_bin.entry(1).or_default().insert(key);
+        self.min_frequency = 1;
+        self.frequency_bin.entry(self.min_frequency).or_default().insert(key);
     }
 }
 
