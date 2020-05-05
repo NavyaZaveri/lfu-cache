@@ -25,7 +25,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use linked_hash_set::LinkedHashSet;
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::fmt::Debug;
 use std::ops::Index;
@@ -72,25 +71,26 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         }
     }
 
-    fn contains(&self, key: &K) -> bool {
+    pub fn contains(&self, key: &K) -> bool {
         return self.values.contains_key(key);
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.values.len()
     }
 
     pub fn remove(&mut self, key: K) -> bool {
         let key = Rc::new(key);
-        if let Some(valueCounter) = self.values.get(&Rc::clone(&key)) {
-            let count = valueCounter.count();
+        if let Some(value_counter) = self.values.get(&Rc::clone(&key)) {
+            let count = value_counter.count();
             self.frequency_bin.entry(count).or_default().remove(&Rc::clone(&key));
             self.values.remove(&key);
         }
         return false;
     }
 
-
+    /// Returns the value associated with the given key (if it still exists)
+    /// The method is mutable because it internally updates the frequency of the accessed key
     pub fn get(&mut self, key: &K) -> Option<&V> {
         if !self.contains(&key) {
             return None;
@@ -107,7 +107,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         bin.remove(&key);
         let count = value_counter.count();
         value_counter.inc();
-        if count == self.min_frequency && bin.len() == 0 {
+        if count == self.min_frequency && bin.is_empty() {
             self.min_frequency += 1;
         }
         self.frequency_bin.entry(count + 1).or_default().insert(key);
