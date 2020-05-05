@@ -1,12 +1,13 @@
-use std::collections::{linked_list, HashMap};
+use std::collections::HashMap;
 use std::hash::Hash;
-use linked_hash_set::{LinkedHashSet, IntoIter};
+use linked_hash_set::LinkedHashSet;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fmt::Debug;
 use std::ops::Index;
 
 
+#[derive(Debug)]
 pub struct LFUCache<K: Hash + Eq, V> {
     values: HashMap<Rc<K>, ValueCounter<V>>,
     frequency_bin: RefCell<HashMap<usize, LinkedHashSet<Rc<K>>>>,
@@ -74,7 +75,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
 
         let key = Rc::new(key);
         self.update_frequency_bin(Rc::clone(&key));
-        let v = self.values.get_mut(&key)?;
+        let v = self.values.get_mut(&key).unwrap();
         v.count += 1;
         return Some(v.value());
     }
@@ -85,10 +86,17 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         map.get_mut(&value_counter.count).unwrap().remove(&key);
         let count = value_counter.count();
         value_counter.inc();
-        if count == *self.min_frequency.borrow() && self.len() == 0 {
+        if count == *self.min_frequency.borrow() && map.len() == 0 {
             *self.min_frequency.borrow_mut() += 1;
         }
         map.entry(count + 1).or_default().insert(key);
+    }
+
+    fn evict(&mut self) {
+        let mut temp = self.frequency_bin.borrow_mut();
+        let least_frequently_used_keys = temp.get_mut(&self.min_frequency.borrow()).unwrap();
+        let least_recently_used = least_frequently_used_keys.pop_front().unwrap();
+        self.values.remove(&least_recently_used);
     }
 
 
@@ -100,10 +108,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
             return;
         }
         if self.len() >= self.capacity {
-            let mut temp = self.frequency_bin.borrow_mut();
-            let least_frequently_used_keys = temp.get_mut(&self.min_frequency.borrow()).unwrap();
-            let least_recently_used = least_frequently_used_keys.pop_front().unwrap();
-            self.values.remove(&least_recently_used);
+            self.evict();
         }
         self.values.insert(Rc::clone(&key), ValueCounter { value, count: 1 });
         *self.min_frequency.borrow_mut() = 1;
