@@ -1,6 +1,4 @@
-//! A Least Frequently Used Cache implementation
-//!
-//!
+//! An efficient Least Frequently Used Cache implementation
 //!
 //!
 //! # Examples
@@ -10,11 +8,11 @@
 //! use lfu::LFUCache;
 //!
 //! # fn main() {
-//! let mut lfu = LFUCache::new(2); //initialize an lfu with a maximum capacity of 2 entries
+//! let mut lfu = LFUCache::new(2).unwrap(); //initialize an lfu with a maximum capacity of 2 entries
 //! lfu.set(2, 2);
 //! lfu.set(3, 3);
 //! lfu.set(3, 30);
-//! lfu.set(4,4); //We're at fully capacity. Purge (2,2) since it's the least-recently-used entry, then insert the current entry
+//! lfu.set(4,4); //We're at fully capacity. First purge (2,2) since it's the least-frequently-used entry, then insert the current entry
 
 //! assert_eq!(lfu.get(&2), None);
 //! assert_eq!(lfu.get(&3), Some(&30));
@@ -24,7 +22,7 @@
 
 use std::collections::HashMap;
 use std::hash::Hash;
-use linked_hash_set::LinkedHashSet;
+use linked_hash_set::{LinkedHashSet, Iter};
 use std::rc::Rc;
 use std::fmt::Debug;
 use std::ops::Index;
@@ -45,13 +43,8 @@ struct ValueCounter<V> {
     count: usize,
 }
 
+
 impl<V> ValueCounter<V> {
-    fn value(&self) -> &V {
-        return &self.value;
-    }
-    fn count(&self) -> usize {
-        return self.count;
-    }
     fn inc(&mut self) {
         self.count += 1;
     }
@@ -59,16 +52,16 @@ impl<V> ValueCounter<V> {
 
 
 impl<K: Hash + Eq, V> LFUCache<K, V> {
-    pub fn new(capacity: usize) -> LFUCache<K, V> {
+    pub fn new(capacity: usize) -> Result<LFUCache<K, V>, &'static str> {
         if capacity == 0 {
-            panic!("invalid capacity")
+            return Err("invalid capacity");
         }
-        LFUCache {
+        Ok(LFUCache {
             values: HashMap::new(),
             frequency_bin: HashMap::new(),
             capacity,
             min_frequency: 0,
-        }
+        })
     }
 
     pub fn contains(&self, key: &K) -> bool {
@@ -82,7 +75,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
     pub fn remove(&mut self, key: K) -> bool {
         let key = Rc::new(key);
         if let Some(value_counter) = self.values.get(&Rc::clone(&key)) {
-            let count = value_counter.count();
+            let count = value_counter.count;
             self.frequency_bin.entry(count).or_default().remove(&Rc::clone(&key));
             self.values.remove(&key);
         }
@@ -90,7 +83,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
     }
 
     /// Returns the value associated with the given key (if it still exists)
-    /// The method is mutable because it internally updates the frequency of the accessed key
+    /// Method marked as mutable because it internally updates the frequency of the accessed key
     pub fn get(&mut self, key: &K) -> Option<&V> {
         if !self.contains(&key) {
             return None;
@@ -98,14 +91,25 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
 
         let key = self.values.get_key_value(key).map(|(r, _)| Rc::clone(r)).unwrap();
         self.update_frequency_bin(Rc::clone(&key));
-        self.values.get(&key).map(|x| x.value())
+        self.values.get(&key).map(|x| &x.value)
     }
+
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        if !self.contains(&key) {
+            return None;
+        }
+
+        let key = self.values.get_key_value(key).map(|(r, _)| Rc::clone(r)).unwrap();
+        self.update_frequency_bin(Rc::clone(&key));
+        self.values.get_mut(&key).map(|x| &mut x.value)
+    }
+
 
     fn update_frequency_bin(&mut self, key: Rc<K>) {
         let value_counter = self.values.get_mut(&key).unwrap();
         let bin = self.frequency_bin.get_mut(&value_counter.count).unwrap();
         bin.remove(&key);
-        let count = value_counter.count();
+        let count = value_counter.count;
         value_counter.inc();
         if count == self.min_frequency && bin.is_empty() {
             self.min_frequency += 1;
@@ -140,11 +144,9 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
 impl<'a, K: Hash + Eq, V> Iterator for &'a LFUCache<K, V> {
     type Item = (Rc<K>, &'a V);
 
+    ///Iteration does not update the frequency of the looped-over entries
     fn next(&mut self) -> Option<Self::Item> {
-        for (k, v) in self.values.iter() {
-            return Some((Rc::clone(k), &v.value));
-        }
-        return None;
+        self.values.iter().next().map(|(k, v)| (Rc::clone(k), &v.value))
     }
 }
 
@@ -153,7 +155,7 @@ impl<K: Hash + Eq, V> Index<K> for LFUCache<K, V> {
     fn index(&self, index: K) -> &Self::Output {
         return self.values.
             get(&Rc::new(index)).
-            map(|x| x.value()).unwrap();
+            map(|x| &x.value).unwrap();
     }
 }
 
@@ -163,7 +165,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let mut lfu = LFUCache::new(20);
+        let mut lfu = LFUCache::new(20).unwrap();
         lfu.set(10, 10);
         lfu.set(20, 30);
         assert_eq!(lfu.get(&10).unwrap(), &10);
@@ -172,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_lru_eviction() {
-        let mut lfu = LFUCache::new(2);
+        let mut lfu = LFUCache::new(2).unwrap();
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.set(3, 3);
@@ -181,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_key_frequency_update() {
-        let mut lfu = LFUCache::new(2);
+        let mut lfu = LFUCache::new(2).unwrap();
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.set(1, 3);
@@ -194,14 +196,14 @@ mod tests {
 
     #[test]
     fn test_lfu_indexing() {
-        let mut lfu: LFUCache<i32, i32> = LFUCache::new(2);
+        let mut lfu: LFUCache<i32, i32> = LFUCache::new(2).unwrap();
         lfu.set(1, 1);
         assert_eq!(lfu[1], 1);
     }
 
     #[test]
     fn test_lfu_deletion() {
-        let mut lfu = LFUCache::new(2);
+        let mut lfu = LFUCache::new(2).unwrap();
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.remove(1);
@@ -214,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_duplicates() {
-        let mut lfu = LFUCache::new(2);
+        let mut lfu = LFUCache::new(2).unwrap();
         lfu.set(&1, 1);
         lfu.set(&1, 2);
         lfu.set(&1, 3);

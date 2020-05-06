@@ -6,9 +6,7 @@ use std::collections::HashMap;
 
 
 fn main() {
-    let mut lfu = lfu::LFUCache::new(20);
-    lfu.set(10, "niofe".to_string());
-    let x = Rc::new("ifoneofe");
-    let mut map = HashMap::new();
-    map.insert(x, 20);
+    let mut a = Box::new(3);
+    *a = 100;
+
 }
