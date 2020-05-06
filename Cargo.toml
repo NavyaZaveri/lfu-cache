@@ -8,6 +8,7 @@ readme = "README.md"
 repository = "https://github.com/NavyaZaveri/lfu-cache"
 keywords = ["cache", "algorithms", "lfu"]
 license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/lfu"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
