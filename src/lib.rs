@@ -1,7 +1,7 @@
 //! An efficient [Least Frequently Used Cache](https://en.wikipedia.org/wiki/Least_frequently_used) implementation.
 //!
-//! It supports insertions and retrievals, both which are performed in constant time. In the event of tie between
-//! two least frequently used entries, the least recently used entry is evicted.
+//! It supports insertions and retrievals, both of which are performed in constant time. In the event of tie between
+//! two least frequently used entries, the least *recently* used entry is evicted.
 //!
 //!
 //!
@@ -58,7 +58,7 @@ impl<V> ValueCounter<V> {
 impl<K: Hash + Eq, V> LFUCache<K, V> {
     pub fn new(capacity: usize) -> Result<LFUCache<K, V>, &'static str> {
         if capacity == 0 {
-            return Err("invalid capacity");
+            return Err("Capacity cannot be 0");
         }
         Ok(LFUCache {
             values: HashMap::new(),
