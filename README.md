@@ -1,7 +1,7 @@
 # lfu-cache
 A rust implementation of a [Least Frequently Used (LFU)](https://en.wikipedia.org/wiki/Least_frequently_used) cache.
 
-It supports insertions and retrievals, both which are performed in constant time. In the event of tie between
+It supports insertions and retrievals, both of which are performed in constant time. In the event of tie between multiple
 least frequently used entries, the least *recently* used entry is evicted.
 
 
