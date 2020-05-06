@@ -95,7 +95,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
     }
 
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        if !self.contains(&key) {
+        if !self.contains(key) {
             return None;
         }
 
