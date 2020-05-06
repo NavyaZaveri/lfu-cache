@@ -22,7 +22,7 @@
 
 use std::collections::HashMap;
 use std::hash::Hash;
-use linked_hash_set::{LinkedHashSet, Iter};
+use linked_hash_set::LinkedHashSet;
 use std::rc::Rc;
 use std::fmt::Debug;
 use std::ops::Index;
@@ -150,6 +150,21 @@ impl<'a, K: Hash + Eq, V> Iterator for &'a LFUCache<K, V> {
     }
 }
 
+
+impl<K: Hash + Eq, V> IntoIterator for LFUCache<K, V> {
+    type Item = (Rc<K>, V);
+    type IntoIter = std::collections::hash_map::IntoIter<Rc<K>, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        return self
+            .values
+            .into_iter()
+            .map(|(key, value_counter)| (key, value_counter.value))
+            .collect::<HashMap<_, _>>()
+            .into_iter();
+    }
+}
+
 impl<K: Hash + Eq, V> Index<K> for LFUCache<K, V> {
     type Output = V;
     fn index(&self, index: K) -> &Self::Output {
@@ -221,5 +236,14 @@ mod tests {
         lfu.set(&1, 2);
         lfu.set(&1, 3);
         assert_eq!(lfu[&1], 3);
+    }
+
+    #[test]
+    fn test_lfu_consumption() {
+        let mut lfu = LFUCache::new(1).unwrap();
+        lfu.set(&1, 1);
+        for (_, v) in lfu {
+            assert_eq!(v, 1);
+        }
     }
 }
