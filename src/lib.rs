@@ -1,4 +1,4 @@
-//! An efficient [Least Frequently Used Cache](https://en.wikipedia.org/wiki/Least_frequently_used) implementation
+//! An efficient [Least Frequently Used Cache](https://en.wikipedia.org/wiki/Least_frequently_used) implementation.
 //!
 //! It supports insertions and retrievals, both which are performed in constant time. In the event of tie between
 //! two least frequently used entries, the least recently used entry is evicted.
