@@ -5,7 +5,7 @@ It supports insertions and retrievals, both of which are performed in constant t
 least frequently used entries, the least *recently* used entry is evicted.
 
 
-Usage:
+### Usage:
 ```
  extern crate lfu;
  use lfu::LFUCache;
