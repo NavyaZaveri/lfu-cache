@@ -127,6 +127,12 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         self.values.remove(&least_recently_used);
     }
 
+    fn iter(&self) -> LfuIterator<K, V> {
+        LfuIterator {
+            values: &self.values
+        }
+    }
+
 
     pub fn set(&mut self, key: K, value: V) {
         let key = Rc::new(key);
@@ -144,8 +150,12 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
     }
 }
 
+struct LfuIterator<'a, K, V> {
+    values: &'a HashMap<Rc<K>, ValueCounter<V>>,
+}
 
-impl<'a, K: Hash + Eq, V> Iterator for &'a LFUCache<K, V> {
+
+impl<'a, K: Hash + Eq, V> Iterator for LfuIterator<'a, K, V> {
     type Item = (Rc<K>, &'a V);
 
     ///Iteration does not update the frequency of the looped-over entries
@@ -239,6 +249,7 @@ mod tests {
         lfu.set(&1, 1);
         lfu.set(&1, 2);
         lfu.set(&1, 3);
+
         assert_eq!(lfu[&1], 3);
     }
 
@@ -248,6 +259,15 @@ mod tests {
         lfu.set(&1, 1);
         for (_, v) in lfu {
             assert_eq!(v, 1);
+        }
+    }
+
+    #[test]
+    fn test_lfu_iter() {
+        let mut lfu = LFUCache::new(1).unwrap();
+        lfu.set(&1, 1);
+        for (_, v) in lfu.iter() {
+            assert_eq!(v, &1);
         }
     }
 }
