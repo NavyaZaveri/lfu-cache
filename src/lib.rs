@@ -12,7 +12,7 @@
 //! use lfu::LFUCache;
 //!
 //! # fn main() {
-//! let mut lfu = LFUCache::new(2).unwrap(); //initialize an lfu with a maximum capacity of 2 entries
+//! let mut lfu = LFUCache::with_capacity(2).unwrap(); //initialize an lfu with a maximum capacity of 2 entries
 //! lfu.set(2, 2);
 //! lfu.set(3, 3);
 //! lfu.set(3, 30);
@@ -30,6 +30,7 @@ use linked_hash_set::LinkedHashSet;
 use std::rc::Rc;
 use std::fmt::Debug;
 use std::ops::Index;
+use std::collections::hash_map::Iter;
 
 
 #[derive(Debug)]
@@ -56,7 +57,7 @@ impl<V> ValueCounter<V> {
 
 
 impl<K: Hash + Eq, V> LFUCache<K, V> {
-    pub fn new(capacity: usize) -> Result<LFUCache<K, V>, &'static str> {
+    pub fn with_capacity(capacity: usize) -> Result<LFUCache<K, V>, &'static str> {
         if capacity == 0 {
             return Err("Capacity cannot be 0");
         }
@@ -127,9 +128,9 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         self.values.remove(&least_recently_used);
     }
 
-    fn iter(&self) -> LfuIterator<K, V> {
+    pub fn iter(&self) -> LfuIterator<K, V> {
         LfuIterator {
-            values: &self.values
+            values: self.values.iter()
         }
     }
 
@@ -150,8 +151,8 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
     }
 }
 
-struct LfuIterator<'a, K, V> {
-    values: &'a HashMap<Rc<K>, ValueCounter<V>>,
+pub struct LfuIterator<'a, K, V> {
+    values: Iter<'a, Rc<K>, ValueCounter<V>>
 }
 
 
@@ -160,7 +161,11 @@ impl<'a, K: Hash + Eq, V> Iterator for LfuIterator<'a, K, V> {
 
     ///Iteration does not update the frequency of the looped-over entries
     fn next(&mut self) -> Option<Self::Item> {
-        self.values.iter().next().map(|(k, v)| (Rc::clone(k), &v.value))
+        let mut iterator_copy = self.values.clone();
+        if iterator_copy.next().is_none() {
+            return None;
+        }
+        self.values.next().map(|(rc, vc)| (Rc::clone(rc), &vc.value))
     }
 }
 
@@ -179,6 +184,7 @@ impl<K: Hash + Eq, V> IntoIterator for LFUCache<K, V> {
     }
 }
 
+
 impl<K: Hash + Eq, V> Index<K> for LFUCache<K, V> {
     type Output = V;
     fn index(&self, index: K) -> &Self::Output {
@@ -194,7 +200,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let mut lfu = LFUCache::new(20).unwrap();
+        let mut lfu = LFUCache::with_capacity(20).unwrap();
         lfu.set(10, 10);
         lfu.set(20, 30);
         assert_eq!(lfu.get(&10).unwrap(), &10);
@@ -203,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_lru_eviction() {
-        let mut lfu = LFUCache::new(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2).unwrap();
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.set(3, 3);
@@ -212,11 +218,10 @@ mod tests {
 
     #[test]
     fn test_key_frequency_update() {
-        let mut lfu = LFUCache::new(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2).unwrap();
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.set(1, 3);
-
         lfu.set(10, 10);
         assert_eq!(lfu.get(&2), None);
         assert_eq!(lfu[10], 10);
@@ -225,14 +230,14 @@ mod tests {
 
     #[test]
     fn test_lfu_indexing() {
-        let mut lfu: LFUCache<i32, i32> = LFUCache::new(2).unwrap();
+        let mut lfu: LFUCache<i32, i32> = LFUCache::with_capacity(2).unwrap();
         lfu.set(1, 1);
         assert_eq!(lfu[1], 1);
     }
 
     #[test]
     fn test_lfu_deletion() {
-        let mut lfu = LFUCache::new(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2).unwrap();
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.remove(1);
@@ -245,17 +250,16 @@ mod tests {
 
     #[test]
     fn test_duplicates() {
-        let mut lfu = LFUCache::new(2).unwrap();
-        lfu.set(&1, 1);
-        lfu.set(&1, 2);
-        lfu.set(&1, 3);
-
-        assert_eq!(lfu[&1], 3);
+        let mut lfu = LFUCache::with_capacity(2).unwrap();
+        lfu.set(1, 1);
+        lfu.set(1, 2);
+        lfu.set(1, 3);
+        assert_eq!(lfu[1], 3);
     }
 
     #[test]
     fn test_lfu_consumption() {
-        let mut lfu = LFUCache::new(1).unwrap();
+        let mut lfu = LFUCache::with_capacity(1).unwrap();
         lfu.set(&1, 1);
         for (_, v) in lfu {
             assert_eq!(v, 1);
@@ -264,10 +268,18 @@ mod tests {
 
     #[test]
     fn test_lfu_iter() {
-        let mut lfu = LFUCache::new(1).unwrap();
+        let mut lfu = LFUCache::with_capacity(2).unwrap();
         lfu.set(&1, 1);
-        for (_, v) in lfu.iter() {
-            assert_eq!(v, &1);
+        lfu.set(&2, 2);
+        let mut index = 0;
+        for (key, v) in lfu.iter() {
+            let key = *key;
+            match key {
+                1 => { assert_eq!(v, &1); }
+                2 => { assert_eq!(v, &2); }
+                _ => {}
+            }
+            index += 1;
         }
     }
 }
