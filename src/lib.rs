@@ -271,7 +271,6 @@ mod tests {
         let mut lfu = LFUCache::with_capacity(2).unwrap();
         lfu.set(&1, 1);
         lfu.set(&2, 2);
-        let mut index = 0;
         for (key, v) in lfu.iter() {
             let key = *key;
             match key {
@@ -279,7 +278,6 @@ mod tests {
                 2 => { assert_eq!(v, &2); }
                 _ => {}
             }
-            index += 1;
         }
     }
 }
