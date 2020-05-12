@@ -153,10 +153,6 @@ impl<'a, K: Hash + Eq, V> Iterator for LfuIterator<'a, K, V> {
 
     ///Iteration does not update the frequency of the looped-over entries
     fn next(&mut self) -> Option<Self::Item> {
-        let mut iterator_copy = self.values.clone();
-        if iterator_copy.next().is_none() {
-            return None;
-        }
         self.values.next().map(|(rc, vc)| (Rc::clone(rc), &vc.value))
     }
 }
