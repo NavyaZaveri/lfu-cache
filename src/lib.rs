@@ -90,21 +90,13 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
     /// Returns the value associated with the given key (if it still exists)
     /// Method marked as mutable because it internally updates the frequency of the accessed key
     pub fn get(&mut self, key: &K) -> Option<&V> {
-        if !self.contains(&key) {
-            return None;
-        }
-
-        let key = self.values.get_key_value(key).map(|(r, _)| Rc::clone(r)).unwrap();
+        let key = self.values.get_key_value(key).map(|(r, _)| Rc::clone(r))?;
         self.update_frequency_bin(Rc::clone(&key));
         self.values.get(&key).map(|x| &x.value)
     }
 
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        if !self.contains(key) {
-            return None;
-        }
-
-        let key = self.values.get_key_value(key).map(|(r, _)| Rc::clone(r)).unwrap();
+        let key = self.values.get_key_value(key).map(|(r, _)| Rc::clone(r))?;
         self.update_frequency_bin(Rc::clone(&key));
         self.values.get_mut(&key).map(|x| &mut x.value)
     }
