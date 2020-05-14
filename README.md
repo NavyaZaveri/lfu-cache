@@ -24,3 +24,6 @@ least frequently used entries, the least *recently* used entry is evicted.
      assert_eq!(lfu.get(&3), Some(&30));
 }
 ```
+
+### Install
+https://crates.io/crates/lfu
