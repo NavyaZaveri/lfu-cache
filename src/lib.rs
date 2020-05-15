@@ -260,8 +260,7 @@ mod tests {
         lfu.set(&1, 1);
         lfu.set(&2, 2);
         for (key, v) in lfu.iter() {
-            let key = *key;
-            match key {
+            match *key {
                 1 => { assert_eq!(v, &1); }
                 2 => { assert_eq!(v, &2); }
                 _ => {}
