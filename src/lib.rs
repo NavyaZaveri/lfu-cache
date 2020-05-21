@@ -73,6 +73,7 @@ impl<K: Hash + Eq, V> LFUCache<K, V> {
         return self.values.contains_key(key);
     }
 
+
     pub fn len(&self) -> usize {
         self.values.len()
     }
@@ -173,6 +174,36 @@ impl<K: Hash + Eq, V> IntoIterator for LFUCache<K, V> {
 }
 
 
+impl<'a, K: Hash + Eq, V> IntoIterator for &'a LFUCache<K, V> {
+    type Item = (Rc<K>, &'a V);
+    type IntoIter = std::collections::hash_map::IntoIter<Rc<K>, &'a V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        return self
+            .values
+            .iter()
+            .map(|(key, value_counter)| (key.clone(), &value_counter.value))
+            .collect::<HashMap<_, _>>()
+            .into_iter();
+    }
+}
+
+
+impl<'a, K: Hash + Eq, V> IntoIterator for &'a mut  LFUCache<K, V> {
+    type Item = (Rc<K>, &'a mut V);
+    type IntoIter = std::collections::hash_map::IntoIter<Rc<K>, &'a mut V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        return self
+            .values
+            .iter_mut()
+            .map(|(key, value_counter)| (key.clone(), &mut value_counter.value))
+            .collect::<HashMap<_, _>>()
+            .into_iter();
+    }
+}
+
+
 impl<K: Hash + Eq, V> Index<K> for LFUCache<K, V> {
     type Output = V;
     fn index(&self, index: K) -> &Self::Output {
@@ -243,6 +274,8 @@ mod tests {
         lfu.set(1, 2);
         lfu.set(1, 3);
         assert_eq!(lfu[1], 3);
+
+        let r = &mut lfu;
     }
 
     #[test]
@@ -254,11 +287,13 @@ mod tests {
         }
     }
 
+
     #[test]
     fn test_lfu_iter() {
         let mut lfu = LFUCache::with_capacity(2).unwrap();
         lfu.set(&1, 1);
         lfu.set(&2, 2);
+        let v = vec![1, 2];
         for (key, v) in lfu.iter() {
             match *key {
                 1 => { assert_eq!(v, &1); }
