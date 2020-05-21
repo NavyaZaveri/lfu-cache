@@ -293,7 +293,6 @@ mod tests {
         let mut lfu = LFUCache::with_capacity(2).unwrap();
         lfu.set(&1, 1);
         lfu.set(&2, 2);
-        let v = vec![1, 2];
         for (key, v) in lfu.iter() {
             match *key {
                 1 => { assert_eq!(v, &1); }
