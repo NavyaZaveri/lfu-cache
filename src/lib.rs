@@ -175,6 +175,8 @@ impl<K: Hash + Eq, V> IntoIterator for LFUCache<K, V> {
 
 impl<'a, K: Hash + Eq, V> IntoIterator for &'a LFUCache<K, V> {
     type Item = (Rc<K>, &'a V);
+
+    //waiting for `type Foo = impl Trait` to stabilize :((
     type IntoIter = Box<dyn Iterator<Item=(Rc<K>, &'a V)> + 'a>;
 
 
@@ -271,8 +273,6 @@ mod tests {
         lfu.set(1, 2);
         lfu.set(1, 3);
         assert_eq!(lfu[1], 3);
-
-        let r = &mut lfu;
     }
 
     #[test]
