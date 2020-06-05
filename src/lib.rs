@@ -173,33 +173,30 @@ impl<K: Hash + Eq, V> IntoIterator for LFUCache<K, V> {
     }
 }
 
-
 impl<'a, K: Hash + Eq, V> IntoIterator for &'a LFUCache<K, V> {
     type Item = (Rc<K>, &'a V);
-    type IntoIter = std::collections::hash_map::IntoIter<Rc<K>, &'a V>;
+    type IntoIter = Box<dyn Iterator<Item=(Rc<K>, &'a V)> + 'a>;
+
 
     fn into_iter(self) -> Self::IntoIter {
-        return self
+        return Box::new(self
             .values
             .iter()
-            .map(|(key, value_counter)| (key.clone(), &value_counter.value))
-            .collect::<HashMap<_, _>>()
-            .into_iter();
+            .map(|(key, value_counter)| (key.clone(), &value_counter.value)));
     }
 }
 
 
-impl<'a, K: Hash + Eq, V> IntoIterator for &'a mut  LFUCache<K, V> {
+impl<'a, K: Hash + Eq, V> IntoIterator for &'a mut LFUCache<K, V> {
     type Item = (Rc<K>, &'a mut V);
-    type IntoIter = std::collections::hash_map::IntoIter<Rc<K>, &'a mut V>;
+    type IntoIter = Box<dyn Iterator<Item=(Rc<K>, &'a mut V)> + 'a>;
+
 
     fn into_iter(self) -> Self::IntoIter {
-        return self
+        return Box::new(self
             .values
             .iter_mut()
-            .map(|(key, value_counter)| (key.clone(), &mut value_counter.value))
-            .collect::<HashMap<_, _>>()
-            .into_iter();
+            .map(|(key, value_counter)| (key.clone(), &mut value_counter.value)));
     }
 }
 
