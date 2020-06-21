@@ -30,7 +30,7 @@ use linked_hash_set::LinkedHashSet;
 use std::rc::Rc;
 use std::fmt::Debug;
 use std::ops::Index;
-use std::collections::hash_map::Iter;
+use std::collections::hash_map::{Iter, IntoIter};
 
 
 #[derive(Debug)]
@@ -148,6 +148,26 @@ pub struct LfuIterator<'a, K, V> {
     values: Iter<'a, Rc<K>, ValueCounter<V>>
 }
 
+pub struct LfuConsumer<K, V> {
+    values: IntoIter<Rc<K>, ValueCounter<V>>
+}
+
+impl<K, V> Iterator for LfuConsumer<K, V> {
+    type Item = (Rc<K>, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.values.next().map(|(k, v)| (k, v.value))
+    }
+}
+
+impl<K: Eq + Hash, V> IntoIterator for LFUCache<K, V> {
+    type Item = (Rc<K>, V);
+    type IntoIter = LfuConsumer<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        return LfuConsumer { values: self.values.into_iter() };
+    }
+}
 
 impl<'a, K: Hash + Eq, V> Iterator for LfuIterator<'a, K, V> {
     type Item = (Rc<K>, &'a V);
@@ -155,21 +175,6 @@ impl<'a, K: Hash + Eq, V> Iterator for LfuIterator<'a, K, V> {
     ///Iteration does not update the frequency of the looped-over entries
     fn next(&mut self) -> Option<Self::Item> {
         self.values.next().map(|(rc, vc)| (Rc::clone(rc), &vc.value))
-    }
-}
-
-
-impl<K: Hash + Eq, V> IntoIterator for LFUCache<K, V> {
-    type Item = (Rc<K>, V);
-    type IntoIter = std::collections::hash_map::IntoIter<Rc<K>, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        return self
-            .values
-            .into_iter()
-            .map(|(key, value_counter)| (key, value_counter.value))
-            .collect::<HashMap<_, _>>()
-            .into_iter();
     }
 }
 
@@ -272,6 +277,10 @@ mod tests {
         lfu.set(1, 1);
         lfu.set(1, 2);
         lfu.set(1, 3);
+        {
+            lfu.set(5, 20);
+        }
+
         assert_eq!(lfu[1], 3);
     }
 
