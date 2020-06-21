@@ -1,6 +1,6 @@
 [package]
 name = "lfu"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["NavyaZaveri"]
 edition = "2018"
 description="An LFU cache implementation"
