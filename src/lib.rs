@@ -148,6 +148,7 @@ pub struct LfuIterator<'a, K, V> {
     values: Iter<'a, Rc<K>, ValueCounter<V>>
 }
 
+
 pub struct LfuConsumer<K, V> {
     values: IntoIter<Rc<K>, ValueCounter<V>>
 }
@@ -172,7 +173,6 @@ impl<K: Eq + Hash, V> IntoIterator for LFUCache<K, V> {
 impl<'a, K: Hash + Eq, V> Iterator for LfuIterator<'a, K, V> {
     type Item = (Rc<K>, &'a V);
 
-    ///Iteration does not update the frequency of the looped-over entries
     fn next(&mut self) -> Option<Self::Item> {
         self.values.next().map(|(rc, vc)| (Rc::clone(rc), &vc.value))
     }
@@ -181,29 +181,10 @@ impl<'a, K: Hash + Eq, V> Iterator for LfuIterator<'a, K, V> {
 impl<'a, K: Hash + Eq, V> IntoIterator for &'a LFUCache<K, V> {
     type Item = (Rc<K>, &'a V);
 
-    //waiting for `type Foo = impl Trait` to stabilize :((
-    type IntoIter = Box<dyn Iterator<Item=(Rc<K>, &'a V)> + 'a>;
-
+    type IntoIter = LfuIterator<'a, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
-        return Box::new(self
-            .values
-            .iter()
-            .map(|(key, value_counter)| (key.clone(), &value_counter.value)));
-    }
-}
-
-
-impl<'a, K: Hash + Eq, V> IntoIterator for &'a mut LFUCache<K, V> {
-    type Item = (Rc<K>, &'a mut V);
-    type IntoIter = Box<dyn Iterator<Item=(Rc<K>, &'a mut V)> + 'a>;
-
-
-    fn into_iter(self) -> Self::IntoIter {
-        return Box::new(self
-            .values
-            .iter_mut()
-            .map(|(key, value_counter)| (key.clone(), &mut value_counter.value)));
+        return self.iter();
     }
 }
 
