@@ -12,7 +12,7 @@
 //! use lfu::LFUCache;
 //!
 //! # fn main() {
-//! let mut lfu = LFUCache::with_capacity(2).unwrap(); //initialize an lfu with a maximum capacity of 2 entries
+//! let mut lfu = LFUCache::with_capacity(2); //initialize an lfu with a maximum capacity of 2 entries
 //! lfu.set(2, 2);
 //! lfu.set(3, 3);
 //! lfu.set(3, 30);
@@ -57,16 +57,16 @@ impl<V> ValueCounter<V> {
 
 
 impl<K: Hash + Eq, V> LFUCache<K, V> {
-    pub fn with_capacity(capacity: usize) -> Result<LFUCache<K, V>, &'static str> {
-        if capacity == 0 {
-            return Err("Capacity cannot be 0");
+    pub fn with_capacity(capacity: usize) -> LFUCache<K, V> {
+        if capacity <= 0 {
+            panic!("Unable to create cache: capacity is {:?}", capacity);
         }
-        Ok(LFUCache {
+        LFUCache {
             values: HashMap::new(),
             frequency_bin: HashMap::new(),
             capacity,
             min_frequency: 0,
-        })
+        }
     }
 
     pub fn contains(&self, key: &K) -> bool {
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let mut lfu = LFUCache::with_capacity(20).unwrap();
+        let mut lfu = LFUCache::with_capacity(20);
         lfu.set(10, 10);
         lfu.set(20, 30);
         assert_eq!(lfu.get(&10).unwrap(), &10);
@@ -213,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_lru_eviction() {
-        let mut lfu = LFUCache::with_capacity(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2);
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.set(3, 3);
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_key_frequency_update() {
-        let mut lfu = LFUCache::with_capacity(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2);
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.set(1, 3);
@@ -234,14 +234,14 @@ mod tests {
 
     #[test]
     fn test_lfu_indexing() {
-        let mut lfu: LFUCache<i32, i32> = LFUCache::with_capacity(2).unwrap();
+        let mut lfu: LFUCache<i32, i32> = LFUCache::with_capacity(2);
         lfu.set(1, 1);
         assert_eq!(lfu[1], 1);
     }
 
     #[test]
     fn test_lfu_deletion() {
-        let mut lfu = LFUCache::with_capacity(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2);
         lfu.set(1, 1);
         lfu.set(2, 2);
         lfu.remove(1);
@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_duplicates() {
-        let mut lfu = LFUCache::with_capacity(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2);
         lfu.set(1, 1);
         lfu.set(1, 2);
         lfu.set(1, 3);
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_lfu_consumption() {
-        let mut lfu = LFUCache::with_capacity(1).unwrap();
+        let mut lfu = LFUCache::with_capacity(1);
         lfu.set(&1, 1);
         for (_, v) in lfu {
             assert_eq!(v, 1);
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_lfu_iter() {
-        let mut lfu = LFUCache::with_capacity(2).unwrap();
+        let mut lfu = LFUCache::with_capacity(2);
         lfu.set(&1, 1);
         lfu.set(&2, 2);
         for (key, v) in lfu.iter() {
